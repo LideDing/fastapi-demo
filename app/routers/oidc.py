@@ -1,14 +1,17 @@
 import logging
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.deps import get_db
 from app.services.auth import (
     exchange_code_for_token,
     fetch_userinfo,
     get_authorization_url,
 )
+from app.services.user_auth import upsert_oidc_user
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ async def login(request: Request, next: str = "/") -> RedirectResponse:
 @router.get("/callback")
 async def callback(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
@@ -76,10 +80,21 @@ async def callback(
             detail="Failed to fetch user info",
         )
 
-    request.session["user"] = {
-        "sub": userinfo.get("sub", ""),
-        "name": userinfo.get("name", userinfo.get("sub", "")),
-    }
+    sub = userinfo.get("sub", "")
+    name = userinfo.get("name", sub)
+
+    # Upsert into local users table
+    try:
+        user = await upsert_oidc_user(db, sub=sub, name=name)
+    except Exception:
+        logger.exception("Failed to upsert OIDC user")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sync user",
+        )
+
+    # Store local user_id in session
+    request.session["user_id"] = str(user.id)
 
     next_url = request.session.pop("oauth_next", "/")
     return RedirectResponse(url=next_url, status_code=302)

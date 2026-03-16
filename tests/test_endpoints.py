@@ -23,7 +23,7 @@ def authed_client():
     app = create_app()
 
     async def _mock_require_auth():
-        return UserInfo(sub="user123", name="Test User")
+        return UserInfo(sub="user123", name="Test User", id="user123")
 
     app.dependency_overrides[require_auth] = _mock_require_auth
     client = TestClient(app)
@@ -39,11 +39,15 @@ def test_health_no_auth(client):
 
 
 def test_hello_redirects_when_unauthenticated(client):
-    """/hello redirects to /oidc/login when no session."""
-    resp = client.get("/hello", follow_redirects=False)
+    """/hello redirects to /auth/login when no session (browser request)."""
+    resp = client.get(
+        "/hello",
+        follow_redirects=False,
+        headers={"Accept": "text/html"},
+    )
     assert resp.status_code == 302
     location = resp.headers["location"]
-    assert "/oidc/login" in location
+    assert "/auth/login" in location
     assert "next=" in location
     assert "/hello" in location
 
@@ -58,32 +62,32 @@ def test_hello_authenticated_with_session(authed_client):
 
 
 def test_oidc_login_redirects_to_provider(client):
-    """/oidc/login redirects to OIDC provider."""
+    """/auth/login redirects to OIDC provider."""
     with patch(
         "app.routers.oidc.get_authorization_url",
         new_callable=AsyncMock,
     ) as mock_auth_url:
         mock_auth_url.return_value = "https://idp.example.com/authorize?client_id=test"
-        resp = client.get("/oidc/login?next=/hello", follow_redirects=False)
+        resp = client.get("/auth/login?next=/hello", follow_redirects=False)
         assert resp.status_code == 302
         location = resp.headers["location"]
         assert "idp.example.com" in location
 
 
 def test_oidc_logout_clears_session(client):
-    """/oidc/logout clears session and redirects to /."""
-    resp = client.get("/oidc/logout", follow_redirects=False)
+    """/auth/logout clears session and redirects to /health."""
+    resp = client.get("/auth/logout", follow_redirects=False)
     assert resp.status_code == 302
-    assert resp.headers["location"] == "/"
+    assert "/health" in resp.headers["location"]
 
 
 def test_oidc_callback_error(client):
     """Callback with error returns 401."""
-    resp = client.get("/oidc/callback?error=access_denied")
+    resp = client.get("/auth/callback?error=access_denied")
     assert resp.status_code == 401
 
 
 def test_oidc_callback_missing_code(client):
     """Callback without code returns 401."""
-    resp = client.get("/oidc/callback")
+    resp = client.get("/auth/callback")
     assert resp.status_code == 401

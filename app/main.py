@@ -8,17 +8,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.db.engine import AsyncSessionLocal
 from app.dependencies.auth import (
     _RedirectToLogin,
     redirect_to_login_handler,
 )
-from app.routers import health, hello, oidc
+from app.routers import groups as groups_router
+from app.routers import health, hello, local_auth, oidc
+from app.services.groups import ensure_admin_group
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Ensure admin group exists on startup
+    async with AsyncSessionLocal() as db:
+        await ensure_admin_group(db)
     logger.info("Application startup complete")
     yield
     logger.info("Application shutdown complete")
@@ -46,6 +52,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(hello.router)
     app.include_router(oidc.router)
+    app.include_router(local_auth.router)
+    app.include_router(groups_router.router)
 
     return app
 

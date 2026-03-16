@@ -23,5 +23,16 @@ class OIDCSettings(BaseSettings):
     scopes: str = "openid,profile"
 
 
+class DBSettings(BaseSettings):
+    model_config = {"env_prefix": "APP_"}
+
+    db_url: str = (
+        "postgresql+asyncpg://postgres:mysecretpassword@localhost:5433/fastapi_demo"
+    )
+    jwt_secret: str = secrets.token_urlsafe(32)
+    jwt_expire_minutes: int = 60
+
+
 settings = Settings()
 oidc_settings = OIDCSettings()
+db_settings = DBSettings()

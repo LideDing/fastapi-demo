@@ -1,22 +1,4 @@
-## Requirements
-
-### Requirement: OIDC configuration
-The system SHALL read OIDC provider settings from environment variables: `OIDC_ISSUER_URL` (required), `OIDC_CLIENT_ID` (required), `OIDC_CLIENT_SECRET` (required), `OIDC_REDIRECT_URL` (required), and `OIDC_SCOPES` (default `openid,profile`). The system SHALL also require `APP_SECRET_KEY` for session cookie signing.
-
-#### Scenario: Valid OIDC configuration
-- **WHEN** all required OIDC environment variables are set
-- **THEN** the application SHALL start successfully
-
-#### Scenario: Missing required OIDC configuration
-- **WHEN** any required OIDC environment variable is not set
-- **THEN** the application SHALL fail to start with a validation error
-
-### Requirement: OIDC login route
-The system SHALL provide a `GET /oidc/login` route that redirects the user to the TAI Auth Center authorization page. The route SHALL accept an optional `next` query parameter to remember the original URL.
-
-#### Scenario: Login redirect
-- **WHEN** a user accesses `GET /oidc/login?next=/hello`
-- **THEN** the system SHALL save `/hello` in the session and redirect (302) to the TAI authorization endpoint with `client_id`, `redirect_uri`, `scope`, and `state` parameters
+## MODIFIED Requirements
 
 ### Requirement: OIDC callback route
 The system SHALL provide a `GET /auth/callback` route that handles the authorization code exchange. It SHALL exchange the authorization code for tokens, fetch user info, upsert the user into the local `users` table using `sub` as `external_id`, store the local `user_id` in the session, and redirect to the saved `next` URL.
@@ -32,13 +14,6 @@ The system SHALL provide a `GET /auth/callback` route that handles the authoriza
 #### Scenario: Callback error
 - **WHEN** the callback receives an `error` parameter or the code exchange fails
 - **THEN** the system SHALL respond with HTTP 401 and an error message
-
-### Requirement: OIDC logout route
-The system SHALL provide a `GET /oidc/logout` route that clears the user session and redirects to the root path.
-
-#### Scenario: Logout
-- **WHEN** a user accesses `GET /oidc/logout`
-- **THEN** the system SHALL clear the session and redirect (302) to `/`
 
 ### Requirement: Session-based authentication dependency
 The system SHALL provide a `require_auth` FastAPI dependency that resolves the current user from either a Bearer JWT token or a session cookie. The resolved `UserInfo` SHALL include `id` (local user UUID), `username`, `groups` (list of group names). If neither is present, the dependency SHALL redirect browsers to the login page or return HTTP 401 for API clients.
@@ -58,21 +33,3 @@ The system SHALL provide a `require_auth` FastAPI dependency that resolves the c
 #### Scenario: Unauthenticated API request
 - **WHEN** a request has no valid token or session and `Accept` does not include `text/html`
 - **THEN** the dependency SHALL return HTTP 401 with `{"detail": "Not authenticated"}`
-
-### Requirement: Health endpoint remains public
-The `/health` endpoint SHALL NOT require authentication.
-
-#### Scenario: Health check without session
-- **WHEN** a GET request is made to `/health` without a session
-- **THEN** the system SHALL respond with HTTP 200 and the health status
-
-### Requirement: Hello endpoint requires authentication
-The `/hello` endpoint SHALL require a valid user session via OIDC login.
-
-#### Scenario: Authenticated hello request
-- **WHEN** a GET request is made to `/hello` with a valid session
-- **THEN** the system SHALL respond with HTTP 200 and the hello response
-
-#### Scenario: Unauthenticated hello request
-- **WHEN** a GET request is made to `/hello` without a valid session
-- **THEN** the system SHALL redirect (302) to `/oidc/login?next=/hello`

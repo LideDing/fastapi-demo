@@ -13,20 +13,25 @@ def client():
 
 
 def test_require_auth_redirects_without_session(client):
-    """Missing session triggers redirect to /oidc/login."""
-    resp = client.get("/hello", follow_redirects=False)
+    """Missing session triggers redirect to /auth/login for browser requests."""
+    resp = client.get(
+        "/hello",
+        follow_redirects=False,
+        headers={"Accept": "text/html"},
+    )
     assert resp.status_code == 302
     location = resp.headers["location"]
-    assert "/oidc/login" in location
+    assert "/auth/login" in location
     assert "next=" in location
 
 
 def test_userinfo_model():
     """UserInfo model parses correctly."""
-    user = UserInfo(sub="user123", name="Test User")
+    user = UserInfo(sub="user123", name="Test User", id="user123")
     assert user.sub == "user123"
     assert user.name == "Test User"
     assert user.extra == {}
+    assert user.groups == []
 
 
 def test_userinfo_model_minimal():
@@ -34,3 +39,4 @@ def test_userinfo_model_minimal():
     user = UserInfo(sub="user123")
     assert user.sub == "user123"
     assert user.name == ""
+    assert user.groups == []
