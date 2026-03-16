@@ -12,7 +12,7 @@ from app.services.auth import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/oidc", tags=["oidc"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/login")
@@ -88,4 +88,4 @@ async def callback(
 @router.get("/logout")
 async def logout(request: Request) -> RedirectResponse:
     request.session.clear()
-    return RedirectResponse(url="/", status_code=302)
+    return RedirectResponse(url="/health", status_code=302)

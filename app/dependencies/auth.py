@@ -12,7 +12,7 @@ async def require_auth(request: Request) -> UserInfo:
         current_url = str(request.url.path)
         if request.url.query:
             current_url += f"?{request.url.query}"
-        login_url = f"/oidc/login?next={quote(current_url)}"
+        login_url = f"/auth/login?next={quote(current_url)}"
         raise _RedirectToLogin(login_url)
 
     return UserInfo(**user_data)
